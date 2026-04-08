@@ -32,4 +32,4 @@ EXPOSE 7860
 # Optional: Add an entrypoint to launch a simple API server to fulfill the /reset HTTP validation
 # For a full implementation, you should create a simple server.py that exposes `/reset` and `/step`.
 # For now, this just runs a placeholder or the baseline script
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
