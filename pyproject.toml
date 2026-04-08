@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "founder_endurance"
+version = "0.1.0"
+description = "A startup-founder survival simulator RL environment."
+dependencies = [
+    "gymnasium>=0.29.0",
+    "numpy>=1.24.0",
+    "openenv-core>=0.2.0",
+    "fastapi",
+    "uvicorn"
+]
+
+[project.scripts]
+server = "server.app:main"
