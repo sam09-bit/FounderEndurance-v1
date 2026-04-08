@@ -3,7 +3,6 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
-
 class FounderEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 1}
 
@@ -36,6 +35,7 @@ class FounderEnv(gym.Env):
         self._caffeine_clearance_days = 0
         self._day = 0
         self._prev_obs = None
+        self._cumulative_reward = 0.0 # Track total reward for 0.0-1.0 grader score
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -43,23 +43,36 @@ class FounderEnv(gym.Env):
         self._day = 0
         self._consecutive_overwork = 0
         self._caffeine_clearance_days = 0
+        self._cumulative_reward = 0.0
 
-        # Initial state -- founder is reasonably healthy at episode start
+        # Handle Difficulty Levels via options dictionary
+        options = options or {}
+        difficulty = options.get("difficulty", "medium")
+
+        # Set initial stats based on the selected task difficulty
+        if difficulty == "easy":
+            start_cash, start_morale, start_market = 0.80, 0.90, 0.80
+        elif difficulty == "hard":
+            start_cash, start_morale, start_market = 0.30, 0.50, 0.20
+        else: # medium
+            start_cash, start_morale, start_market = 0.60, 0.80, 0.50
+
+        # Initial state
         obs = np.array([
             0.10,  # sleep_debt
             0.15,  # cortisol_level
             0.00,  # caffeine_toxicity
             0.50,  # product_velocity
-            0.80,  # team_morale
-            0.60,  # cash_runway
-            0.50,  # market_condition (mid-cycle)
+            start_morale,  
+            start_cash,  
+            start_market, 
             0.00,  # active_crisis
             0.00,  # day_of_week (Monday)
             1.00,  # days_to_launch (full 90 days)
         ], dtype=np.float32)
 
         self._prev_obs = obs.copy()
-        info = {}
+        info = {"difficulty": difficulty}
         return obs, info
 
     def step(self, action):
@@ -98,11 +111,26 @@ class FounderEnv(gym.Env):
             if obs[3] > 0.8 and obs[5] > 0.0:
                 reward += 500.0
 
+        self._cumulative_reward += reward
         self._prev_obs = obs.copy()
 
+        # Compile info dict
         info = {"day": self._day, "action": action.tolist()}
+        
+        # If episode is over, calculate the normalized 0.0 - 1.0 grader score
+        if terminated or truncated:
+            info["score"] = self._calculate_normalized_score(self._cumulative_reward)
 
         return obs, float(reward), terminated, truncated, info
+
+    def _calculate_normalized_score(self, total_reward):
+        """Maps the raw cumulative reward to a strict 0.0 to 1.0 scale for the OpenEnv Grader."""
+        # Estimated bounds based on penalties and launch bonuses
+        MIN_REWARD = -500.0 
+        MAX_REWARD = 800.0
+        
+        score = (total_reward - MIN_REWARD) / (MAX_REWARD - MIN_REWARD)
+        return float(max(0.0, min(1.0, score)))
 
     def render(self):
         if self.render_mode is None:
@@ -114,7 +142,6 @@ class FounderEnv(gym.Env):
                     print(f"  {label}: {self._prev_obs[i]:.3f}")
             return None
         if self.render_mode == "rgb_array":
-            # Return a minimal placeholder image
             img = np.zeros((64, 64, 3), dtype=np.uint8)
             return img
 
@@ -126,31 +153,26 @@ class FounderEnv(gym.Env):
         using_caffeine = (health_idx == 1)
         using_therapy = (health_idx == 2)
 
-        # Therapy hard-caps work hours at 8
         if using_therapy:
             hours = min(hours, 8)
-            obs[1] -= 0.20  # cortisol_level drops sharply
+            obs[1] -= 0.20  
 
-        # Caffeine toxicity
         if using_caffeine:
-            obs[2] += 0.20  # caffeine_toxicity
+            obs[2] += 0.20  
             self._caffeine_clearance_days = 0
         else:
             self._caffeine_clearance_days += 1
             if self._caffeine_clearance_days >= 3:
-                obs[2] -= 0.10  # caffeine clears after 3 days
+                obs[2] -= 0.10  
 
-        # Sleep debt accumulation / recovery
         sleep_hours = 24 - hours
         if sleep_hours < 7:
             debt_increase = (7 - sleep_hours) / 7.0 * 0.15
             obs[0] += debt_increase
         else:
-            # Can only clear sleep debt if caffeine_toxicity is low
             if obs[2] <= 0.6:
-                obs[0] -= 0.05  # gradual recovery
+                obs[0] -= 0.05  
 
-        # Cortisol increases with long hours
         if hours >= 12:
             obs[1] += 0.05 * (hours / 8.0)
 
@@ -160,34 +182,28 @@ class FounderEnv(gym.Env):
     # Dynamics Subsystem 2: Focus Area Effects
     # ------------------------------------------------------------------
     def _apply_focus(self, obs, focus_idx, work_hours_idx):
-        # Effectiveness multiplier: halved if caffeine_toxicity > 0.6
         effectiveness = 0.5 if obs[2] > 0.6 else 1.0
         hours = self.WORK_HOURS[work_hours_idx]
         intensity = (hours / 16.0) * effectiveness
 
-        if focus_idx == 0:    # Product / Engineering
-            obs[3] += 0.08 * intensity    # product_velocity up
-            # Crisis resolved faster when team focuses on product
+        if focus_idx == 0:    
+            obs[3] += 0.08 * intensity    
             if obs[7] > 0.0:
                 obs[7] -= 0.3 * intensity
 
-        elif focus_idx == 1:  # Fundraising / Sales
-            # Market condition scales the cash gain
+        elif focus_idx == 1:  
             cash_gain = 0.10 * intensity * obs[6]
             obs[5] += cash_gain
 
-        elif focus_idx == 2:  # Team Building
-            obs[4] += 0.10 * intensity    # team_morale up
-            obs[3] -= 0.03               # velocity dips temporarily
+        elif focus_idx == 2:  
+            obs[4] += 0.10 * intensity    
+            obs[3] -= 0.03               
 
-        elif focus_idx == 3:  # Firefighting
-            obs[1] -= 0.08 * intensity    # cortisol_level down
+        elif focus_idx == 3:  
+            obs[1] -= 0.08 * intensity    
 
-        # Cash runway always decays by a daily burn rate
         obs[5] -= 0.01
 
-        # Market condition: stochastic sine wave
-        # Advance phase by a random small step each day
         phase_delta = self.np_random.uniform(0.02, 0.06)
         obs[6] = (np.sin(self._day * phase_delta) + 1.0) / 2.0
 
@@ -206,11 +222,10 @@ class FounderEnv(gym.Env):
 
         if self._consecutive_overwork > 3:
             decay = 0.05 * (self._consecutive_overwork ** 1.5)
-            obs[4] -= decay  # exponential morale loss
+            obs[4] -= decay  
 
-        # Hard cap: quiet-quitting kicks in at low morale
         if obs[4] < 0.2:
-            obs[3] = min(obs[3], 0.10)  # product_velocity capped at 10%
+            obs[3] = min(obs[3], 0.10)  
 
         return obs
 
@@ -218,14 +233,12 @@ class FounderEnv(gym.Env):
     # Dynamics Subsystem 4: Stochastic Crisis Engine
     # ------------------------------------------------------------------
     def _apply_crisis(self, obs, focus_idx):
-        # Crisis resolution first
         if obs[7] > 0.0:
-            obs[1] += 0.05  # active crisis raises cortisol each day
+            obs[1] += 0.05  
 
-        # Stochastic crisis generation
         p_crisis = 0.05 + (1.0 - obs[3]) * 0.15 + obs[2] * 0.10
         if obs[7] == 0.0 and self.np_random.random() < p_crisis:
-            obs[7] = 1.0  # new crisis activated
+            obs[7] = 1.0  
 
         return obs
 
@@ -237,29 +250,24 @@ class FounderEnv(gym.Env):
         reward = 0.0
         terminated = False
 
-        # Delta rewards
         delta_cash = obs[5] - prev[5]
         delta_velocity = obs[3] - prev[3]
         reward += self.W1 * delta_cash
         reward += self.W2 * delta_velocity
 
-        # Health penalties
-        if obs[1] > 0.8:    # cortisol_level
+        if obs[1] > 0.8:    
             reward -= 1.0
-        if obs[0] > 0.8:    # sleep_debt
+        if obs[0] > 0.8:    
             reward -= 1.5
 
-        # Terminal: Hospitalisation
         if obs[1] >= 1.0 or obs[0] >= 1.0:
             reward -= 250.0
             terminated = True
 
-        # Terminal: Bankruptcy
         if obs[5] <= 0.0:
             reward -= 250.0
             terminated = True
 
-        # Terminal: Mutiny
         if obs[4] <= 0.0:
             reward -= 200.0
             terminated = True

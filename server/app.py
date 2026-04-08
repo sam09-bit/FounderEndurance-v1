@@ -9,7 +9,7 @@ env = gym.make("FounderEndurance-v1")
 
 @app.post("/reset")
 async def reset(request: Request):
-    # Accept any json body for reset, such as seed or empty body
+    # Accept any json body for reset, such as seed, options, or empty body
     body = {}
     try:
         body = await request.json()
@@ -17,7 +17,11 @@ async def reset(request: Request):
         pass
     
     seed = body.get("seed", None)
-    obs, info = env.reset(seed=seed)
+    
+    # Extract options to allow OpenEnv to set the task difficulty
+    options = body.get("options", None) 
+    
+    obs, info = env.reset(seed=seed, options=options)
     return {"observation": obs.tolist(), "info": info}
 
 @app.post("/step")
