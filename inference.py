@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from openai import OpenAI
 from client import FounderEnvClient
-from server.models import FounderAction
+from models import FounderAction
 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "dummy-key")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"

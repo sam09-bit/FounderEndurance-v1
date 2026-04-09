@@ -1,8 +1,13 @@
+import sys
+import os
+# Add the root directory to sys.path so we can import models.py
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import uuid
 import random
 from openenv.core.env_server import Environment
-from server.models import FounderAction, FounderObservation, FounderState
+from models import FounderAction, FounderObservation, FounderState
 
 class FounderEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
