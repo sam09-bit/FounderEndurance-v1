@@ -2,7 +2,7 @@ import numpy as np
 import uuid
 import random
 from openenv.core.env_server import Environment
-from models import FounderAction, FounderObservation, FounderState
+from server.models import FounderAction, FounderObservation, FounderState
 
 class FounderEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
