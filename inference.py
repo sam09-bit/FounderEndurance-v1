@@ -3,14 +3,18 @@ Baseline Inference Script for FounderEnvironment
 Strictly follows the [START], [STEP], [END] logging format.
 """
 import os
+import sys
 import json
 import textwrap
 import asyncio
 from typing import List, Optional
 from openai import OpenAI
-from openenv.core.client import OpenEnvClient
 
-# Import local models for typing
+# Ensure the root directory is in the path to import models and server correctly
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Import local environment and models
+from server.environment import FounderEnvironment
 from models import FounderAction
 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
@@ -20,8 +24,6 @@ MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 # OpenEnv sets these env vars during evaluation
 TASK_NAME = os.getenv("OPENENV_TASK", "survive_medium")
 BENCHMARK = os.getenv("OPENENV_BENCHMARK", "founder-env")
-# Read the port/host from env vars usually provided by OpenEnv
-SERVER_URL = os.getenv("OPENENV_SERVER_URL", "http://localhost:7860")
 
 MAX_STEPS = 90
 TEMPERATURE = 0.2
@@ -56,13 +58,13 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
 
-async def get_action_from_llm(client: OpenAI, obs: dict) -> dict:
+async def get_action_from_llm(client: OpenAI, obs) -> dict:
     user_prompt = json.dumps({
-        "sleep_debt": round(obs.get("sleep_debt", 0), 2),
-        "cortisol": round(obs.get("cortisol_level", 0), 2),
-        "cash_runway": round(obs.get("cash_runway", 0), 2),
-        "team_morale": round(obs.get("team_morale", 0), 2),
-        "active_crisis": round(obs.get("active_crisis", 0), 2)
+        "sleep_debt": round(obs.sleep_debt, 2),
+        "cortisol": round(obs.cortisol_level, 2),
+        "cash_runway": round(obs.cash_runway, 2),
+        "team_morale": round(obs.team_morale, 2),
+        "active_crisis": round(obs.active_crisis, 2)
     })
     
     try:
@@ -93,9 +95,8 @@ async def get_action_from_llm(client: OpenAI, obs: dict) -> dict:
 async def main():
     llm_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     
-    # Connect via OpenEnvClient instead of local instantiation 
-    # to match standard server-client OpenEnv architecture
-    env_client = OpenEnvClient(SERVER_URL)
+    # Instantiate the environment locally instead of over HTTP
+    env = FounderEnvironment()
     
     rewards: List[float] = []
     steps_taken = 0
@@ -110,10 +111,8 @@ async def main():
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
     
     try:
-        # Start episode via HTTP API
-        response = env_client.reset(options={"difficulty": difficulty})
-        obs = response.get("observation", {})
-        episode_id = response.get("state", {}).get("episode_id", "")
+        # Start episode directly via Python
+        obs = env.reset(options={"difficulty": difficulty})
         
         for step in range(1, MAX_STEPS + 1):
             action_dict = await get_action_from_llm(llm_client, obs)
@@ -121,15 +120,14 @@ async def main():
             
             try:
                 # Send action to environment
-                response = env_client.step(action_dict)
-                obs = response.get("observation", {})
-                state = response.get("state", {})
+                action = FounderAction(**action_dict)
+                obs = env.step(action)
                 error = None
             except Exception as e:
                 error = str(e)
             
-            reward = obs.get("reward", 0.0)
-            done = obs.get("done", False)
+            reward = obs.reward
+            done = obs.done
             
             rewards.append(reward)
             steps_taken = step
@@ -138,7 +136,7 @@ async def main():
             
             if done:
                 # Update final score from the last state
-                score = state.get("score", 0.0)
+                score = env.state.score
                 break
                 
         success = score >= SUCCESS_SCORE_THRESHOLD
