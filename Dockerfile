@@ -1,15 +1,19 @@
 FROM python:3.10-slim
 
 WORKDIR /app
-COPY . /app/
 
-RUN pip install --no-cache-dir \
-    numpy>=1.24.0 \
-    openai \
-    openenv-core \
-    fastapi \
-    uvicorn \
-    pydantic
+# Install system dependencies if required
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-# Dynamic port binding handles both HF Spaces and the automated validation checker
-CMD ["sh", "-c", "uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Environment variables for HF Spaces
+ENV HOST=0.0.0.0
+ENV PORT=7860
+
+EXPOSE 7860
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

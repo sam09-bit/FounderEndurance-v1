@@ -1,31 +1,21 @@
-version: 1.0
-
-benchmark:
-  name: "FounderEndurance-v1"
-  description: "A startup-founder survival simulator RL environment."
-  version: "0.1.0"
-  
-tasks:
-  - id: "founder_survival_easy"
-    description: "Survive 90 days as a startup founder in an easy market."
-    max_steps: 90
-    reward_threshold: 400.0
-
-  - id: "founder_survival_medium"
-    description: "Survive 90 days as a startup founder in an average market."
-    max_steps: 90
-    reward_threshold: 350.0
-
-  - id: "founder_survival_hard"
-    description: "Survive 90 days as a startup founder in a highly volatile market."
-    max_steps: 90
-    reward_threshold: 300.0
-
+version: "1.0"
+name: "founder-survival-env"
+description: "An RL environment simulating a startup founder managing burnout, cash runway, and product velocity."
 environment:
-  docker_image: "founderendurance:latest"
-  # This line is CRITICAL for the validation script to find your environment natively
-  entry_point: "server.environment:FounderEnvironment"
-
-validation:
-  test_episodes: 1
-  timeout_seconds: 1200
+  entrypoint: "server.app:app"
+tasks:
+  - id: "survive_easy"
+    name: "Easy Mode"
+    description: "Start with abundant cash and high team morale."
+    options:
+      difficulty: "easy"
+  - id: "survive_medium"
+    name: "Medium Mode"
+    description: "Standard startup conditions. Balance is key."
+    options:
+      difficulty: "medium"
+  - id: "survive_hard"
+    name: "Hard Mode"
+    description: "Start with low cash and low morale. Challenging for frontier models."
+    options:
+      difficulty: "hard"
