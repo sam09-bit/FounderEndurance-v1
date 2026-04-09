@@ -2,7 +2,7 @@ import numpy as np
 import uuid
 import random
 from openenv.core.env_server import Environment
-from models import FounderAction, FounderObservation, FounderState # CHANGED IMPORT
+from models import FounderAction, FounderObservation, FounderState
 
 class FounderEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
@@ -27,7 +27,11 @@ class FounderEnvironment(Environment):
         self._caffeine_clearance_days = 0
         self._cumulative_reward = 0.0
 
-        difficulty = kwargs.get("options", {}).get("difficulty", "medium")
+        # CRITICAL FIX: Safe dict extraction so the validator doesn't cause a NoneType crash
+        options = kwargs.get("options")
+        if not isinstance(options, dict):
+            options = {}
+        difficulty = options.get("difficulty", "medium")
         
         if difficulty == "easy":
             start_cash, start_morale, start_market = 0.80, 0.90, 0.80
@@ -122,7 +126,6 @@ class FounderEnvironment(Environment):
         done = terminated or truncated
 
         if done:
-            # Grader requirement: Final score between 0.0 and 1.0
             self._state.score = float(max(0.0, min(1.0, (self._cumulative_reward - (-500.0)) / (800.0 - (-500.0)))))
 
         return self._array_to_obs(done, float(reward))

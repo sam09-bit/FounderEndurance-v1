@@ -23,7 +23,8 @@ tasks:
 
 environment:
   docker_image: "founderendurance:latest"
-  entry_point: "server.app:app"
+  # This line is CRITICAL for the validation script to find your environment natively
+  entry_point: "server.environment:FounderEnvironment"
 
 validation:
   test_episodes: 1
