@@ -1,5 +1,5 @@
 version: "1.0"
-name: "founder-survival-env"
+name: "founder-endurance-env"
 description: "An RL environment simulating a startup founder managing burnout, cash runway, and product velocity."
 environment:
   entrypoint: "server.app:app"
@@ -7,15 +7,18 @@ tasks:
   - id: "survive_easy"
     name: "Easy Mode"
     description: "Start with abundant cash and high team morale."
+    grader: "server.grader:grade_easy"
     options:
       difficulty: "easy"
   - id: "survive_medium"
     name: "Medium Mode"
     description: "Standard startup conditions. Balance is key."
+    grader: "server.grader:grade_medium"
     options:
       difficulty: "medium"
   - id: "survive_hard"
     name: "Hard Mode"
     description: "Start with low cash and low morale. Challenging for frontier models."
+    grader: "server.grader:grade_hard"
     options:
       difficulty: "hard"

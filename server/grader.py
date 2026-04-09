@@ -1,24 +1,27 @@
-def grade_easy_mode(state_score: float) -> float:
-    """Grader for the Easy Mode task."""
-    # In easy mode, we are generous with the score
-    return min(1.0, state_score * 1.2)
+from typing import Any
 
-def grade_medium_mode(state_score: float) -> float:
-    """Grader for the Medium Mode task."""
-    # In medium mode, the score is exactly as calculated
-    return min(1.0, max(0.0, state_score))
+def _extract_score(state: Any) -> float:
+    """Helper to safely extract the score whether OpenEnv passes a dict or an object."""
+    try:
+        # If state is passed as a Pydantic object
+        return float(state.score)
+    except AttributeError:
+        # If state is passed as a standard dictionary
+        if isinstance(state, dict):
+            return float(state.get("score", 0.0))
+    return 0.0
 
-def grade_hard_mode(state_score: float) -> float:
-    """Grader for the Hard Mode task."""
-    # In hard mode, it's very difficult to get a perfect score
-    # We apply a slight penalty curve
-    return min(1.0, max(0.0, state_score * 0.9))
+def grade_easy(state: Any, *args, **kwargs) -> float:
+    """Grades the Easy Mode task."""
+    score = _extract_score(state)
+    return min(1.0, score * 1.2)  # Slightly generous curve for easy mode
 
-def get_score_for_task(difficulty: str, raw_score: float) -> float:
-    """Routes the raw score to the appropriate task grader."""
-    if difficulty == "easy":
-        return grade_easy_mode(raw_score)
-    elif difficulty == "hard":
-        return grade_hard_mode(raw_score)
-    else:
-        return grade_medium_mode(raw_score)
+def grade_medium(state: Any, *args, **kwargs) -> float:
+    """Grades the Medium Mode task."""
+    score = _extract_score(state)
+    return max(0.0, min(1.0, score))  # Standard score
+
+def grade_hard(state: Any, *args, **kwargs) -> float:
+    """Grades the Hard Mode task."""
+    score = _extract_score(state)
+    return max(0.0, min(1.0, score * 0.9))  # Harsher curve for hard mode
