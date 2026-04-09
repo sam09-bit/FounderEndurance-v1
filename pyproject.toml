@@ -16,3 +16,6 @@ dependencies = [
     "numpy",
     "openai"
 ]
+
+[project.scripts]
+server = "server.app:main"
