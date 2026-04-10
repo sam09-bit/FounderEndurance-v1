@@ -19,3 +19,12 @@ dependencies = [
 
 [project.scripts]
 server = "server.app:main"
+
+[tool.setuptools]
+# Explicitly tell it to package your root-level python files
+py-modules = ["models", "inference", "client"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+# Explicitly tell it to package your server directory containing the graders
+include = ["server", "server.*"]
