@@ -25,4 +25,7 @@ py-modules = ["models", "inference", "client"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["server", "server.*"]
+include = ["server*"]
+
+[tool.setuptools.package-data]
+"server" = ["*.py"]

@@ -1,6 +1,6 @@
 from openenv.core.env_client import EnvClient
 from openenv.core.client_types import StepResult
-from .models import FounderAction, FounderObservation, FounderState
+from models import FounderAction, FounderObservation, FounderState  # ✅ absolute import
 
 class FounderEnvClient(EnvClient[FounderAction, FounderObservation, FounderState]):
     def _step_payload(self, action: FounderAction) -> dict:
