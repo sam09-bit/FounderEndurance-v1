@@ -1,27 +1,47 @@
 from typing import Any
 
-def _extract_score(state: Any) -> float:
-    """Helper to safely extract the score whether OpenEnv passes a dict or an object."""
-    try:
-        # If state is passed as a Pydantic object
-        return float(state.score)
-    except AttributeError:
-        # If state is passed as a standard dictionary
+def _extract_score(payload: Any) -> float:
+    """Ultra-safe score extraction to survive the automated validation bot."""
+    score = 0.0
+    
+    # 1. Check if OpenEnv passed a full Episode object (has .state)
+    if hasattr(payload, 'state'):
+        state = payload.state
         if isinstance(state, dict):
-            return float(state.get("score", 0.0))
-    return 0.0
+            score = state.get("score", 0.0)
+        else:
+            score = getattr(state, "score", 0.0)
+            
+    # 2. Check if OpenEnv passed the state dictionary directly
+    elif isinstance(payload, dict):
+        score = payload.get("score", 0.0)
+        
+    # 3. Check if OpenEnv passed the state Pydantic object directly
+    else:
+        score = getattr(payload, "score", 0.0)
+        
+    try:
+        return float(score)
+    except (ValueError, TypeError):
+        return 0.0
 
-def grade_easy(state: Any, *args, **kwargs) -> float:
+def grade_easy(*args, **kwargs) -> float:
     """Grades the Easy Mode task."""
-    score = _extract_score(state)
-    return min(1.0, score * 1.2)  # Slightly generous curve for easy mode
+    payload = args[0] if args else kwargs.get('episode') or kwargs.get('state')
+    score = _extract_score(payload)
+    # Strictly clamped between 0.0 and 1.0
+    return float(max(0.0, min(1.0, score * 1.2)))
 
-def grade_medium(state: Any, *args, **kwargs) -> float:
+def grade_medium(*args, **kwargs) -> float:
     """Grades the Medium Mode task."""
-    score = _extract_score(state)
-    return max(0.0, min(1.0, score))  # Standard score
+    payload = args[0] if args else kwargs.get('episode') or kwargs.get('state')
+    score = _extract_score(payload)
+    # Strictly clamped between 0.0 and 1.0
+    return float(max(0.0, min(1.0, score)))
 
-def grade_hard(state: Any, *args, **kwargs) -> float:
+def grade_hard(*args, **kwargs) -> float:
     """Grades the Hard Mode task."""
-    score = _extract_score(state)
-    return max(0.0, min(1.0, score * 0.9))  # Harsher curve for hard mode
+    payload = args[0] if args else kwargs.get('episode') or kwargs.get('state')
+    score = _extract_score(payload)
+    # Strictly clamped between 0.0 and 1.0
+    return float(max(0.0, min(1.0, score * 0.9)))
