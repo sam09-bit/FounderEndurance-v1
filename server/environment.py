@@ -8,7 +8,6 @@ import uuid
 import random
 from openenv.core.env_server import Environment
 from models import FounderAction, FounderObservation, FounderState
-from .grader import get_score_for_task # Import the grader!
 
 class FounderEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
@@ -131,9 +130,10 @@ class FounderEnvironment(Environment):
         done = terminated or truncated
 
         if done:
+            # We just save the raw score to state. 
+            # OpenEnv will automatically pass this state to grader.py based on openenv.yaml!
             raw_score = float(max(0.0, min(1.0, (self._cumulative_reward - (-500.0)) / (800.0 - (-500.0)))))
-            # APPLY THE GRADER HERE based on the task difficulty
-            self._state.score = get_score_for_task(self._state.difficulty, raw_score)
+            self._state.score = raw_score
 
         return self._array_to_obs(done, float(reward))
 
