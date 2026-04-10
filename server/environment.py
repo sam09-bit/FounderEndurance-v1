@@ -23,7 +23,7 @@ class FounderEnvironment(Environment):
         self._caffeine_clearance_days = 0
         self._cumulative_reward = 0.0
 
-    def reset(self, seed=None, episode_id=None, **kwargs) -> FounderObservation:
+    def reset(self, episode_id: str = None, seed: int = None, options: dict = None, **kwargs) -> FounderObservation:
         if seed is not None:
             random.seed(seed)
             np.random.seed(seed)
@@ -32,9 +32,12 @@ class FounderEnvironment(Environment):
         self._caffeine_clearance_days = 0
         self._cumulative_reward = 0.0
 
-        options = kwargs.get("options")
+        # Bulletproof options extraction
+        if options is None:
+            options = kwargs.get("options", {})
         if not isinstance(options, dict):
             options = {}
+            
         difficulty = options.get("difficulty", "medium")
         
         if difficulty == "easy":
