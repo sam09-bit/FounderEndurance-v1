@@ -25,23 +25,23 @@ def _extract_score(payload: Any) -> float:
     except (ValueError, TypeError):
         return 0.0
 
-def grade_easy(*args, **kwargs) -> float:
+def grade_easy(state: Any = None, *args, **kwargs) -> float:
     """Grades the Easy Mode task."""
-    payload = args[0] if args else kwargs.get('episode') or kwargs.get('state')
+    payload = state if state is not None else kwargs.get('episode')
     score = _extract_score(payload)
-    # Strictly clamped between 0.0 and 1.0
+    # STRICTLY clamped between 0.0 and 1.0 to pass validation
     return float(max(0.0, min(1.0, score * 1.2)))
 
-def grade_medium(*args, **kwargs) -> float:
+def grade_medium(state: Any = None, *args, **kwargs) -> float:
     """Grades the Medium Mode task."""
-    payload = args[0] if args else kwargs.get('episode') or kwargs.get('state')
+    payload = state if state is not None else kwargs.get('episode')
     score = _extract_score(payload)
-    # Strictly clamped between 0.0 and 1.0
+    # STRICTLY clamped between 0.0 and 1.0 to pass validation
     return float(max(0.0, min(1.0, score)))
 
-def grade_hard(*args, **kwargs) -> float:
+def grade_hard(state: Any = None, *args, **kwargs) -> float:
     """Grades the Hard Mode task."""
-    payload = args[0] if args else kwargs.get('episode') or kwargs.get('state')
+    payload = state if state is not None else kwargs.get('episode')
     score = _extract_score(payload)
-    # Strictly clamped between 0.0 and 1.0
+    # STRICTLY clamped between 0.0 and 1.0 to pass validation
     return float(max(0.0, min(1.0, score * 0.9)))
